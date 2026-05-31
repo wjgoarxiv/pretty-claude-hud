@@ -1,0 +1,7 @@
+.DS_Store
+.ulw/
+HANDOFF.md
+__pycache__/
+*.pyc
+tmp/
+*.bak
