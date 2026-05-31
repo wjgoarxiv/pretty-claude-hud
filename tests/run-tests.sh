@@ -124,12 +124,34 @@ docs_avoid_ai_slop_and_include_design_stance() {
   pass "$id"
 }
 
+docs_include_detailed_llm_agent_install_prompts() {
+  local id="docs_include_detailed_llm_agent_install_prompts"
+
+  grep -q 'Detailed LLM Agent Prompt' "$ROOT/README.md" || fail "$id" "English README missing detailed LLM prompt heading"
+  grep -q '상세 LLM Agent 프롬프트' "$ROOT/README-Ko-KR.md" || fail "$id" "Korean README missing detailed LLM prompt heading"
+
+  for file in "$ROOT/README.md" "$ROOT/README-Ko-KR.md"; do
+    grep -q 'git clone https://github.com/wjgoarxiv/pretty-claude-hud.git' "$file" || fail "$id" "$(basename "$file") missing clone command"
+    grep -q 'install.sh" --dry-run' "$file" || fail "$id" "$(basename "$file") missing dry-run install command"
+    grep -q 'install.sh"' "$file" || fail "$id" "$(basename "$file") missing install command"
+    grep -q "jq -r '.statusLine.command'" "$file" || fail "$id" "$(basename "$file") missing statusLine verification"
+    grep -q 'bash -n "$HOME/.claude/hud/context-bar.sh"' "$file" || fail "$id" "$(basename "$file") missing installed script syntax check"
+    grep -q 'CLAUDE_HUD_TEST_USAGE' "$file" || fail "$id" "$(basename "$file") missing sample HUD render"
+    grep -q 'settings.json.bak' "$file" || fail "$id" "$(basename "$file") missing backup expectation"
+  done
+
+  grep -q 'Restart Claude Code' "$ROOT/README.md" || fail "$id" "English README missing restart instruction"
+  grep -q 'Claude Code를 재시작' "$ROOT/README-Ko-KR.md" || fail "$id" "Korean README missing restart instruction"
+  pass "$id"
+}
+
 main() {
   hud_happy_path_renders_compact_sections
   hud_missing_transcript_and_minimal_json_still_renders
   install_dry_run_writes_expected_command_and_no_live_mutation
   docs_reference_cover_install_and_bilingual_links
   docs_avoid_ai_slop_and_include_design_stance
+  docs_include_detailed_llm_agent_install_prompts
 }
 
 main "$@"

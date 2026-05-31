@@ -31,8 +31,74 @@ A Claude Code statusline that makes the working state readable without turning t
 
 Paste this into Claude Code, Codex, or another coding assistant:
 
+#### Detailed LLM Agent Prompt
+
 ```text
-Clone https://github.com/wjgoarxiv/pretty-claude-hud to my home directory and run install.sh. Stop before changing anything if ~/.claude/settings.json has unusual statusLine settings.
+You are setting up pretty-claude-hud on my machine. Please perform the setup end to end, but be careful with my existing Claude Code configuration.
+
+Goal:
+- Install pretty-claude-hud from https://github.com/wjgoarxiv/pretty-claude-hud.
+- Configure Claude Code's statusLine command to run the installed HUD script.
+- Verify that the script and settings are valid.
+- Report exactly what changed and tell me when to restart Claude Code.
+
+Rules:
+- Do not delete or rewrite unrelated settings in ~/.claude/settings.json.
+- If ~/.claude/settings.json already has a statusLine command that does not look like pretty-claude-hud or ~/.claude/hud/context-bar.sh, stop and show me the existing command before changing it.
+- Keep any settings.json.bak.* backup made by the installer.
+- Stop on any command failure and show me the command plus the error.
+- Use $HOME instead of assuming a specific username.
+
+Steps:
+1. Check the required tools:
+   command -v bash
+   command -v git
+   command -v jq
+   command -v curl
+   If any tool is missing, stop and tell me what to install.
+
+2. Clone or update the repository:
+   if [ -d "$HOME/pretty-claude-hud/.git" ]; then
+     git -C "$HOME/pretty-claude-hud" pull --ff-only
+   else
+     git clone https://github.com/wjgoarxiv/pretty-claude-hud.git "$HOME/pretty-claude-hud"
+   fi
+
+3. Inspect the installer before writing files:
+   bash "$HOME/pretty-claude-hud/install.sh" --dry-run
+   Confirm that it targets:
+   - $HOME/.claude/hud/context-bar.sh
+   - $HOME/.claude/settings.json
+
+4. Install:
+   bash "$HOME/pretty-claude-hud/install.sh"
+
+5. Verify the installed files:
+   test -x "$HOME/.claude/hud/context-bar.sh"
+   bash -n "$HOME/.claude/hud/context-bar.sh"
+   jq -e . "$HOME/.claude/settings.json"
+   jq -r '.statusLine.command' "$HOME/.claude/settings.json"
+   The statusLine command should be:
+   bash "$HOME/.claude/hud/context-bar.sh"
+
+6. Render a sample HUD without touching my real transcript:
+   tmpdir="$(mktemp -d)"
+   transcript="$tmpdir/transcript.jsonl"
+   status="$tmpdir/status.json"
+   cat > "$transcript" <<'JSONL'
+{"type":"user","message":{"content":"Check that the HUD is readable."}}
+{"type":"assistant","message":{"usage":{"input_tokens":420000,"cache_read_input_tokens":0,"cache_creation_input_tokens":0,"output_tokens":0}}}
+JSONL
+   cat > "$status" <<JSON
+{"model":{"display_name":"Opus 4.8 (1M context)"},"cwd":"$HOME/pretty-claude-hud","transcript_path":"$transcript","context_window":{"context_window_size":1000000}}
+JSON
+   CLAUDE_HUD_TEST_USAGE='5h=42,1w=63' bash "$HOME/.claude/hud/context-bar.sh" < "$status" | sed -E 's/\x1b\[[0-9;]*m//g'
+
+7. Final report:
+   - Tell me whether install succeeded.
+   - List the files changed.
+   - Show the statusLine command from jq -r '.statusLine.command' "$HOME/.claude/settings.json".
+   - Tell me: Restart Claude Code or open a new Claude Code session to see the HUD.
 ```
 
 ### Manual Install

@@ -31,8 +31,74 @@ Claude Code의 현재 상태를 조용하게 보여주는 statusline HUD입니�
 
 Claude Code, Codex 또는 다른 코딩 어시스턴트에 아래 내용을 붙여넣으세요:
 
+#### 상세 LLM Agent 프롬프트
+
 ```text
-https://github.com/wjgoarxiv/pretty-claude-hud 를 홈 디렉토리에 클론하고 install.sh를 실행해줘. 단, ~/.claude/settings.json에 특이한 statusLine 설정이 있으면 변경 전에 멈춰줘.
+내 머신에 pretty-claude-hud를 끝까지 셋팅해줘. 다만 기존 Claude Code 설정은 조심해서 다뤄줘.
+
+목표:
+- https://github.com/wjgoarxiv/pretty-claude-hud 에서 pretty-claude-hud를 설치한다.
+- Claude Code의 statusLine command가 설치된 HUD 스크립트를 실행하도록 설정한다.
+- 스크립트와 settings 파일이 올바른지 검증한다.
+- 정확히 무엇이 바뀌었는지 보고하고, Claude Code를 언제 재시작해야 하는지 알려준다.
+
+규칙:
+- ~/.claude/settings.json 안의 관련 없는 설정을 삭제하거나 다시 쓰지 않는다.
+- ~/.claude/settings.json에 이미 statusLine command가 있고, 그 값이 pretty-claude-hud 또는 ~/.claude/hud/context-bar.sh 계열로 보이지 않으면 변경 전에 멈추고 기존 command를 보여준다.
+- installer가 만든 settings.json.bak.* 백업은 보존한다.
+- 어떤 명령이든 실패하면 멈추고, 실행한 명령과 에러를 보여준다.
+- 특정 사용자 이름을 가정하지 말고 $HOME을 사용한다.
+
+절차:
+1. 필요한 도구를 확인한다:
+   command -v bash
+   command -v git
+   command -v jq
+   command -v curl
+   하나라도 없으면 멈추고 무엇을 설치해야 하는지 알려준다.
+
+2. repository를 clone 또는 update한다:
+   if [ -d "$HOME/pretty-claude-hud/.git" ]; then
+     git -C "$HOME/pretty-claude-hud" pull --ff-only
+   else
+     git clone https://github.com/wjgoarxiv/pretty-claude-hud.git "$HOME/pretty-claude-hud"
+   fi
+
+3. 실제 파일을 쓰기 전에 installer 계획을 확인한다:
+   bash "$HOME/pretty-claude-hud/install.sh" --dry-run
+   대상이 아래 두 경로인지 확인한다:
+   - $HOME/.claude/hud/context-bar.sh
+   - $HOME/.claude/settings.json
+
+4. 설치한다:
+   bash "$HOME/pretty-claude-hud/install.sh"
+
+5. 설치된 파일을 검증한다:
+   test -x "$HOME/.claude/hud/context-bar.sh"
+   bash -n "$HOME/.claude/hud/context-bar.sh"
+   jq -e . "$HOME/.claude/settings.json"
+   jq -r '.statusLine.command' "$HOME/.claude/settings.json"
+   statusLine command는 아래 값이어야 한다:
+   bash "$HOME/.claude/hud/context-bar.sh"
+
+6. 실제 transcript를 건드리지 않고 샘플 HUD를 렌더링한다:
+   tmpdir="$(mktemp -d)"
+   transcript="$tmpdir/transcript.jsonl"
+   status="$tmpdir/status.json"
+   cat > "$transcript" <<'JSONL'
+{"type":"user","message":{"content":"Check that the HUD is readable."}}
+{"type":"assistant","message":{"usage":{"input_tokens":420000,"cache_read_input_tokens":0,"cache_creation_input_tokens":0,"output_tokens":0}}}
+JSONL
+   cat > "$status" <<JSON
+{"model":{"display_name":"Opus 4.8 (1M context)"},"cwd":"$HOME/pretty-claude-hud","transcript_path":"$transcript","context_window":{"context_window_size":1000000}}
+JSON
+   CLAUDE_HUD_TEST_USAGE='5h=42,1w=63' bash "$HOME/.claude/hud/context-bar.sh" < "$status" | sed -E 's/\x1b\[[0-9;]*m//g'
+
+7. 최종 보고:
+   - 설치가 성공했는지 알려준다.
+   - 변경된 파일을 나열한다.
+   - jq -r '.statusLine.command' "$HOME/.claude/settings.json" 결과를 보여준다.
+   - "HUD를 보려면 Claude Code를 재시작하거나 새 Claude Code 세션을 여세요."라고 알려준다.
 ```
 
 ### 직접 설치
