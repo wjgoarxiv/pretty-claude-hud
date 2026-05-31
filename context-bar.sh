@@ -3,7 +3,6 @@
 # Color theme: gray, orange, blue, teal, green, lavender, rose, gold, slate, cyan
 COLOR="${CLAUDE_HUD_THEME:-blue}"
 HUD_SEP="${CLAUDE_HUD_SEP:-│}"
-ICON_DIR="${CLAUDE_HUD_ICON_DIR:-󰉋}"
 ICON_GIT="${CLAUDE_HUD_ICON_GIT:-󰊢}"
 
 # Color codes
@@ -36,6 +35,17 @@ if [[ -n "${NO_COLOR:-}" || "${CLAUDE_HUD_NO_COLOR:-0}" == "1" ]]; then
     C_ACCENT=''
 fi
 
+short_model() {
+    local raw=$1 compact
+    compact=$(printf '%s' "$raw" | sed -E 's/ *\([^)]*\)//g; s/\[[^]]*\]//g; s/[[:space:]]+/ /g; s/^ //; s/ $//')
+    case "$compact" in
+        *Opus*) printf 'O%s' "$(printf '%s' "$compact" | grep -Eo '[0-9]+(\.[0-9]+)?' | head -1)" ;;
+        *Sonnet*) printf 'S%s' "$(printf '%s' "$compact" | grep -Eo '[0-9]+(\.[0-9]+)?' | head -1)" ;;
+        *Haiku*) printf 'H%s' "$(printf '%s' "$compact" | grep -Eo '[0-9]+(\.[0-9]+)?' | head -1)" ;;
+        *) printf '%s' "$compact" | cut -c1-10 ;;
+    esac
+}
+
 input=$(cat)
 
 # Extract model, directory, and cwd
@@ -43,13 +53,8 @@ model=$(echo "$input" | jq -r '.model.display_name // .model.id // "?"')
 if [[ "$model" == *"[1m]"* && "${ANTHROPIC_BASE_URL:-}" == *"z.ai"* ]]; then
     model="${model//[1m]/[200k]}"
 fi
+model_short=$(short_model "$model")
 cwd=$(echo "$input" | jq -r '.cwd // empty')
-if [[ -n "$cwd" ]]; then
-    dir=$(basename "$cwd" 2>/dev/null || echo "?")
-else
-    dir="?"
-fi
-[[ -z "$dir" ]] && dir="?"
 
 # Get git branch, uncommitted file count, and sync status
 branch=""
@@ -57,63 +62,22 @@ git_status=""
 if [[ -n "$cwd" && -d "$cwd" ]]; then
     branch=$(git -C "$cwd" branch --show-current 2>/dev/null)
     if [[ -n "$branch" ]]; then
-        # Count uncommitted files
         file_count=$(git -C "$cwd" --no-optional-locks status --porcelain -uall 2>/dev/null | wc -l | tr -d ' ')
 
-        # Check sync status with upstream
         sync_status=""
         upstream=$(git -C "$cwd" rev-parse --abbrev-ref @{upstream} 2>/dev/null)
         if [[ -n "$upstream" ]]; then
-            # Get last fetch time
-            fetch_head="$cwd/.git/FETCH_HEAD"
-            fetch_ago=""
-            if [[ -f "$fetch_head" ]]; then
-                fetch_time=$(stat -f %m "$fetch_head" 2>/dev/null || stat -c %Y "$fetch_head" 2>/dev/null)
-                if [[ -n "$fetch_time" ]]; then
-                    now=$(date +%s)
-                    diff=$((now - fetch_time))
-                    if [[ $diff -lt 60 ]]; then
-                        fetch_ago="<1m ago"
-                    elif [[ $diff -lt 3600 ]]; then
-                        fetch_ago="$((diff / 60))m ago"
-                    elif [[ $diff -lt 86400 ]]; then
-                        fetch_ago="$((diff / 3600))h ago"
-                    else
-                        fetch_ago="$((diff / 86400))d ago"
-                    fi
-                fi
-            fi
-
             counts=$(git -C "$cwd" rev-list --left-right --count HEAD...@{upstream} 2>/dev/null)
             ahead=$(echo "$counts" | cut -f1)
             behind=$(echo "$counts" | cut -f2)
-            if [[ "$ahead" -eq 0 && "$behind" -eq 0 ]]; then
-                if [[ -n "$fetch_ago" ]]; then
-                    sync_status="synced ${fetch_ago}"
-                else
-                    sync_status="synced"
-                fi
-            elif [[ "$ahead" -gt 0 && "$behind" -eq 0 ]]; then
-                sync_status="${ahead} ahead"
-            elif [[ "$ahead" -eq 0 && "$behind" -gt 0 ]]; then
-                sync_status="${behind} behind"
-            else
-                sync_status="${ahead} ahead, ${behind} behind"
-            fi
-        else
-            sync_status="no upstream"
+            [[ "$ahead" -gt 0 ]] && sync_status+="↑${ahead}"
+            [[ "$behind" -gt 0 ]] && sync_status+="↓${behind}"
         fi
 
-        # Build git status string
-        if [[ "$file_count" -eq 0 ]]; then
-            git_status="(0 files uncommitted, ${sync_status})"
-        elif [[ "$file_count" -eq 1 ]]; then
-            # Show the actual filename when only one file is uncommitted
-            single_file=$(git -C "$cwd" --no-optional-locks status --porcelain -uall 2>/dev/null | head -1 | sed 's/^...//')
-            git_status="(${single_file} uncommitted, ${sync_status})"
-        else
-            git_status="(${file_count} files uncommitted, ${sync_status})"
-        fi
+        [[ -z "$sync_status" ]] && sync_status="✓"
+        git_status="${branch}"
+        [[ "$file_count" -gt 0 ]] && git_status+=" +${file_count}"
+        git_status+=" ${sync_status}"
     fi
 fi
 
@@ -370,23 +334,22 @@ if [[ -n "$usage_5h" && -n "$usage_1w" ]]; then
     reset_1w_str=$(format_reset "$reset_1w")
     usage_str=" ${C_GRAY}${HUD_SEP} 5h [$(make_bar "$usage_5h")]${local_c5}${usage_5h}%${C_RESET}"
     [[ -n "$reset_5h_str" ]] && usage_str+="${C_GRAY}${reset_5h_str}${C_RESET}"
-    usage_str+=" ${C_GRAY}· wk [$(make_bar "$usage_1w")]${local_c1}${usage_1w}%${C_RESET}"
+    usage_str+=" ${C_GRAY}${HUD_SEP} 1w [$(make_bar "$usage_1w")]${local_c1}${usage_1w}%${C_RESET}"
     [[ -n "$reset_1w_str" ]] && usage_str+="${C_GRAY}${reset_1w_str}${C_RESET}"
 fi
 
-# Build output: Model | Dir | Branch (uncommitted) | Context | Usage
-output="${C_ACCENT}✦ ${model}${C_GRAY} ${HUD_SEP} ${ICON_DIR} ${dir}"
-[[ -n "$branch" ]] && output+=" ${HUD_SEP} ${ICON_GIT} ${branch} ${git_status}"
-output+=" ${HUD_SEP} ctx ${ctx}${usage_str}${C_RESET}"
+output="${C_ACCENT}${model_short}${C_GRAY} ${HUD_SEP} ctx ${ctx}${usage_str}"
+[[ -n "$git_status" ]] && output+=" ${HUD_SEP} git ${git_status}"
+output+="${C_RESET}"
 
 printf '%b\n' "$output"
 
 # Get user's last message (text only, not tool results, skip unhelpful messages)
 if [[ -n "$transcript_path" && -f "$transcript_path" ]]; then
     # Calculate visible length (without ANSI codes) - 10 chars for bar + content
-    plain_output="${model} ${HUD_SEP} ${ICON_DIR} ${dir}"
-    [[ -n "$branch" ]] && plain_output+=" ${HUD_SEP} ${ICON_GIT} ${branch} ${git_status}"
+    plain_output="${model_short}"
     plain_output+=" ${HUD_SEP} ctx xxxxxx ${pct}%/${max_k}k"
+    [[ -n "$git_status" ]] && plain_output+=" ${HUD_SEP} git ${git_status}"
     max_len=${#plain_output}
     last_user_msg=$(jq -rs '
         # Messages to skip (not useful as context)

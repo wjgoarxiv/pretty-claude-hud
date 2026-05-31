@@ -59,8 +59,8 @@ font_prompt = load_font(menlo, 42)
 
 draw = ImageDraw.Draw(canvas)
 title = "pretty-claude-hud"
-subtitle = "Readable statusline for Claude Code. Context, git, limits, intent."
-prompt = "* Opus 4.8 | repo | main | ctx ███▄░░ 58%/1000k | 5h [██░░░]42%"
+subtitle = "Readable statusline for Claude Code. Context and rate limits stay visible."
+prompt = "O4.8 | ctx ███▄░░ 58%/1000k | 5h [██░░░]42% | 1w [███░░]63% | git main ✓"
 
 title_x, title_y = centered_text_position(draw, title, font_title, 426)
 subtitle_x, subtitle_y = centered_text_position(draw, subtitle, font_subtitle, 674)

@@ -10,9 +10,9 @@ A Claude Code statusline that makes the working state readable without turning t
 
 ## What It Shows
 
-- **Model and project** — Active model and current folder, visible without scanning the conversation pane.
+- **Short model tag** — `Opus 4.8 (1M context)` becomes `O4.8`, leaving room for the gauges.
 - **Context meter** — Compact token usage bar with the current context window size.
-- **Git awareness** — Branch, changed-file count, and upstream sync state when the current folder is a repo.
+- **Compact worktree tail** — Branch, dirty count, and upstream arrows stay at the end instead of crowding the gauges.
 - **Rate-limit meters** — 5-hour and weekly usage bars when Claude Code OAuth usage data is available.
 - **Last-message recall** — A subtle second line with your latest prompt, trimmed to match the HUD width.
 - **Terminal-native shape** — Built for Nerd Fonts, Powerlevel10k-style prompts, and dark terminal themes.
@@ -23,7 +23,7 @@ A Claude Code statusline that makes the working state readable without turning t
 
 **Antithesis:** a pretty HUD can become noise when it chases badges, gradients, and labels that do not help the next action.
 
-**Synthesis:** this repo keeps one dense statusline plus one intent line. The visual treatment is there to rank information, not to decorate it.
+**Synthesis:** this repo keeps one dense statusline plus one intent line. Context and rate-limit gauges get the prime space; worktree state becomes a short tail.
 
 ## Quick Start
 

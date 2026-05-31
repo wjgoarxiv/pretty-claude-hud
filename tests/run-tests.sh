@@ -45,12 +45,16 @@ hud_happy_path_renders_compact_sections() {
   local output
   output="$(CLAUDE_HUD_TEST_USAGE='5h=42,1w=63,reset5=2027-01-01T01:00:00Z,reset1=2027-01-05T01:00:00Z' "$ROOT/context-bar.sh" < "$status" | strip_ansi)"
 
-  [[ "$output" == *"Opus 4.8"* ]] || fail "$id" "missing model label"
-  [[ "$output" == *"󰉋 $folder_name"* ]] || fail "$id" "missing readable folder segment"
+  [[ "$output" == *"O4.8"* ]] || fail "$id" "missing abbreviated model label"
+  [[ "$output" != *"Opus 4.8 (1M context)"* ]] || fail "$id" "model label is too long"
+  [[ "$output" != *"$folder_name"* ]] || fail "$id" "folder segment should not render"
+  [[ "$output" != *"󰉋"* ]] || fail "$id" "folder icon should not render"
   [[ "$output" == *"ctx "* ]] || fail "$id" "missing context label"
   [[ "$output" == *"50%/1000k"* ]] || fail "$id" "missing compact context ratio"
-  [[ "$output" == *"5h ["* && "$output" == *"wk ["* ]] || fail "$id" "missing labeled rate-limit meters"
-  [[ "$output" == *"└─ 💬 Make the HUD beautiful but still readable."* ]] || fail "$id" "missing second-line last message"
+  [[ "$output" == *"5h ["* && "$output" == *"1w ["* ]] || fail "$id" "missing labeled rate-limit meters"
+  [[ "$output" == *"git main"* ]] || fail "$id" "missing compact git segment"
+  [[ "$output" != *"uncommitted"* && "$output" != *"no upstream"* ]] || fail "$id" "git segment is too verbose"
+  [[ "$output" == *"└─ 💬 Make the HUD beautiful"* ]] || fail "$id" "missing second-line last message"
   pass "$id"
 }
 
@@ -60,7 +64,7 @@ hud_missing_transcript_and_minimal_json_still_renders() {
   output="$(printf '{}\n' | "$ROOT/context-bar.sh" | strip_ansi)"
 
   [[ "$output" == *"?"* ]] || fail "$id" "missing fallback model"
-  [[ "$output" == *"󰉋 ?"* ]] || fail "$id" "missing fallback folder"
+  [[ "$output" != *"󰉋"* ]] || fail "$id" "folder icon should not render in fallback"
   [[ "$output" == *"ctx "* ]] || fail "$id" "missing fallback context label"
   [[ "$output" == *"~10%/200k"* ]] || fail "$id" "missing fallback baseline context"
   pass "$id"
